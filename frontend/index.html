@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swinburne Admission Chatbot (Prototype)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: flex-start;
+            align-items: flex-start;
+            gap: 20px;
+            min-height: 100vh;
+            padding: 20px;
+            overflow: auto;
+            flex-wrap: wrap;
+        }
+
+        /* ============ SIDEBAR (BÊN PHẢI) ============ */
+        #history-sidebar {
+            width: 320px;
+            height: min(600px, calc(100vh - 40px));
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            order: 1;
+        }
+
+        /* ============ CHAT BOX (BÊN PHẢI) ============ */
+        #chat-container {
+            width: 100%;
+            max-width: 450px;
+            height: min(600px, calc(100vh - 40px));
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            margin-left: auto;
+            order: 2;
+        }
+
+        /* ============ SIDEBAR STYLES (không dùng trong bố cục này) ============ */
+
+        #history-header {
+            background-color: #1f2937;
+            color: white;
+            padding: 15px;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        #history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .history-item {
+            padding: 10px;
+            background-color: #f1f5f9;
+            border-radius: 6px;
+            cursor: pointer;
+            border-left: 3px solid #ef4444;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+            max-height: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .history-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: #ef4444;
+            flex-shrink: 0;
+        }
+
+        .history-item-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .history-item:hover {
+            background-color: #e2e8f0;
+            transform: translateX(5px);
+        }
+
+        .history-item.active {
+            background-color: #ef4444;
+            color: white;
+            border-left-color: #dc2626;
+        }
+
+        .history-item.selected {
+            background-color: #dbeafe;
+            border-left-color: #3b82f6;
+        }
+
+        #history-controls {
+            padding: 10px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 8px;
+            flex-direction: column;
+        }
+
+        #history-controls-row1 {
+            display: flex;
+            gap: 8px;
+        }
+
+        #history-controls-row2 {
+            display: flex;
+            gap: 8px;
+            display: none;
+        }
+
+        #history-controls-row2.show {
+            display: flex;
+        }
+
+        .btn-small {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .btn-new {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .btn-new:hover {
+            background-color: #059669;
+        }
+
+        .btn-delete {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background-color: #dc2626;
+        }
+
+        .btn-delete:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-select-all {
+            background-color: #3b82f6;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-select-all:hover {
+            background-color: #2563eb;
+        }
+
+        .btn-clear-selection {
+            background-color: #6b7280;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-clear-selection:hover {
+            background-color: #4b5563;
+        }
+
+        .btn-delete-selected {
+            background-color: #ef4444;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-delete-selected:hover {
+            background-color: #dc2626;
+        }
+
+        #chat-header {
+            background-color: #ef4444;
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #api-indicator {
+            font-size: 0.8rem;
+            background-color: rgba(255,255,255,0.2);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: normal;
+            display: none;
+        }
+
+        #chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 15px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .bot-message {
+            background-color: #f1f5f9;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
+        .user-message {
+            background-color: #ef4444;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .system-message {
+            background-color: #fef08a;
+            color: #92400e;
+            align-self: center;
+            font-size: 0.9rem;
+            font-style: italic;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        #input-container {
+            display: flex;
+            padding: 15px;
+            border-top: 1px solid #e2e8f0;
+            background-color: white;
+        }
+
+        #user-input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid #cbd5e1;
+            border-radius: 20px;
+            outline: none;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        #user-input:focus {
+            border-color: #ef4444;
+        }
+
+        #send-btn {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            margin-left: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        #send-btn:hover {
+            background-color: #dc2626;
+        }
+
+        #send-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            align-self: flex-start;
+            color: #64748b;
+            font-size: 0.9rem;
+            font-style: italic;
+            display: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            body {
+                justify-content: center;
+                align-items: center;
+                padding: 16px;
+                overflow: auto;
+            }
+            #history-sidebar {
+                width: 100%;
+                max-width: 450px;
+                height: 180px;
+            }
+            #chat-container {
+                width: 100%;
+                max-width: 450px;
+                height: calc(100vh - 32px);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ======== SIDEBAR LỊCH SỬ ======== -->
+    <div id="history-sidebar">
+        <div id="history-header">
+            📋 Lịch Sử Chat
+            <span style="font-size: 0.8rem; display: block; font-weight: normal;">
+                (<span id="history-count">0</span> cuộc trò chuyện)
+            </span>
+        </div>
+        
+        <div id="history-list"></div>
+
+        <div id="history-controls">
+            <div id="history-controls-row1">
+                <button class="btn-small btn-new" id="btn-new">➕ Mới</button>
+                <button class="btn-small btn-delete" id="btn-delete" disabled>🗑️ Xóa</button>
+            </div>
+            <div id="history-controls-row2">
+                <button class="btn-small btn-select-all" id="btn-select-all">✓ Chọn tất cả</button>
+                <button class="btn-small btn-clear-selection" id="btn-clear-selection">Bỏ chọn</button>
+                <button class="btn-small btn-delete-selected" id="btn-delete-selected">🗑️ Xóa chọn</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-container">
+        <div id="chat-header">
+            <div>Swinburne Admission Assistant</div>
+            <div id="api-indicator">API #1</div>
+        </div>
+        
+        <div id="chat-messages">
+            <div class="message bot-message" data-greeting="true">
+                Chào bạn! Mình là trợ lý ảo của Swinburne. Bạn muốn hỏi gì nào?
+            </div>
+            <div id="loading-indicator" class="loading">Đang suy nghĩ...</div>
+        </div>
+
+        <div id="input-container">
+            <input type="text" id="user-input" placeholder="Nhập câu hỏi của bạn..." autocomplete="off">
+            <button id="send-btn">Gửi</button>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // ⚙️ CẤU HÌNH CHUNG
+        // ============================================================
+        const BACKEND_URL = 'http://localhost:5000';
+        const CHAT_ENDPOINT = `${BACKEND_URL}/api/chat`;
+        const STATUS_ENDPOINT = `${BACKEND_URL}/api/status`;
+        const SAVE_ENDPOINT = `${BACKEND_URL}/api/save-chat`;  // Mới!
+
+        // ============================================================
+        // 📦 LOCALSTORAGE - LƯU TRỮ LOCAL
+        // ============================================================
+        
+        class ChatHistory {
+            constructor() {
+                this.storageKey = 'swinburne_chats';
+                this.currentChatId = null;
+            }
+
+            // Tạo ID duy nhất cho mỗi cuộc trò chuyện
+            generateId() {
+                return `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            }
+
+            // Tạo cuộc trò chuyện mới
+            createNewChat() {
+                const chatId = this.generateId();
+                const timestamp = new Date().toLocaleString('vi-VN');
+                
+                const chats = this.getAllChats();
+                chats[chatId] = {
+                    id: chatId,
+                    title: `Cuộc trò chuyện ${timestamp}`,
+                    timestamp: timestamp,
+                    messages: []
+                };
+                
+                localStorage.setItem(this.storageKey, JSON.stringify(chats));
+                this.currentChatId = chatId;
+                
+                console.log(`✅ Tạo cuộc trò chuyện mới: ${chatId}`);
+                return chatId;
+            }
+
+            // Lấy toàn bộ cuộc trò chuyện
+            getAllChats() {
+                const data = localStorage.getItem(this.storageKey);
+                return data ? JSON.parse(data) : {};
+            }
+
+            // Lấy 1 cuộc trò chuyện cụ thể
+            getChat(chatId) {
+                const chats = this.getAllChats();
+                return chats[chatId] || null;
+            }
+
+            // Thêm tin nhắn vào cuộc trò chuyện
+            addMessage(chatId, sender, text) {
+                const chats = this.getAllChats();
+                if (!chats[chatId]) return false;
+
+                chats[chatId].messages.push({
+                    sender: sender,  // 'user' hoặc 'bot'
+                    text: text,
+                    timestamp: new Date().toISOString()
+                });
+
+                // Cập nhật tiêu đề từ tin nhắn đầu tiên
+                if (chats[chatId].messages.length === 1) {
+                    chats[chatId].title = text.substring(0, 40) + (text.length > 40 ? '...' : '');
+                }
+
+                localStorage.setItem(this.storageKey, JSON.stringify(chats));
+                return true;
+            }
+
+            // Xóa cuộc trò chuyện
+            deleteChat(chatId) {
+                const chats = this.getAllChats();
+                delete chats[chatId];
+                localStorage.setItem(this.storageKey, JSON.stringify(chats));
+                
+                if (this.currentChatId === chatId) {
+                    this.currentChatId = null;
+                }
+                
+                console.log(`🗑️ Đã xóa: ${chatId}`);
+                return true;
+            }
+
+            // Lấy lịch sử dưới dạng mảng (để hiển thị UI)
+            getChatsArray() {
+                const chats = this.getAllChats();
+                return Object.values(chats).sort((a, b) => 
+                    new Date(b.timestamp) - new Date(a.timestamp)
+                );
+            }
+        }
+
+        // Tạo instance
+        const chatHistory = new ChatHistory();
+
+        // ============================================================
+        // DOM ELEMENTS
+        // ============================================================
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const apiIndicator = document.getElementById('api-indicator');
+        
+        const historyList = document.getElementById('history-list');
+        const historyCount = document.getElementById('history-count');
+        const btnNew = document.getElementById('btn-new');
+        const btnDelete = document.getElementById('btn-delete');
+        const btnSelectAll = document.getElementById('btn-select-all');
+        const btnClearSelection = document.getElementById('btn-clear-selection');
+        const btnDeleteSelected = document.getElementById('btn-delete-selected');
+        const historyControlsRow2 = document.getElementById('history-controls-row2');
+
+        // Biến theo dõi checkboxes
+        const selectedChats = new Set();
+
+        // ============================================================
+        // QUẢN LÝ LỊCH SỬ UI
+        // ============================================================
+
+        function renderHistoryList() {
+            /**
+             * Cập nhật danh sách lịch sử trên UI (với checkbox)
+             */
+            historyList.innerHTML = '';
+            const chats = chatHistory.getChatsArray();
+            
+            historyCount.textContent = chats.length;
+
+            if (chats.length === 0) {
+                historyList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">Chưa có cuộc trò chuyện</div>';
+                selectedChats.clear();
+                updateSelectionUI();
+                return;
+            }
+
+            chats.forEach(chat => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                
+                // Thêm checkbox
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'history-checkbox';
+                checkbox.value = chat.id;
+                checkbox.checked = selectedChats.has(chat.id);
+                
+                // Thêm text
+                const textSpan = document.createElement('span');
+                textSpan.className = 'history-item-text';
+                textSpan.textContent = chat.title;
+                
+                // Xử lý checkbox
+                checkbox.addEventListener('change', (e) => {
+                    e.stopPropagation();  // Không trigger click trên div
+                    if (checkbox.checked) {
+                        selectedChats.add(chat.id);
+                        div.classList.add('selected');
+                    } else {
+                        selectedChats.delete(chat.id);
+                        div.classList.remove('selected');
+                    }
+                    updateSelectionUI();
+                });
+                
+                // Xử lý click để tải chat (không khi checkbox được click)
+                div.addEventListener('click', (e) => {
+                    if (e.target !== checkbox) {
+                        loadChat(chat.id);
+                    }
+                });
+                
+                if (chat.id === chatHistory.currentChatId) {
+                    div.classList.add('active');
+                }
+                
+                if (selectedChats.has(chat.id)) {
+                    div.classList.add('selected');
+                }
+                
+                div.appendChild(checkbox);
+                div.appendChild(textSpan);
+                historyList.appendChild(div);
+            });
+
+            // Cập nhật nút xóa
+            btnDelete.disabled = !chatHistory.currentChatId;
+        }
+
+        // Cập nhật UI khi có selection
+        function updateSelectionUI() {
+            if (selectedChats.size > 0) {
+                historyControlsRow2.classList.add('show');
+            } else {
+                historyControlsRow2.classList.remove('show');
+            }
+        }
+
+        function loadChat(chatId) {
+            /**
+             * Tải cuộc trò chuyện từ LocalStorage
+             */
+            console.log(`📂 Tải cuộc trò chuyện: ${chatId}`);
+            
+            const chat = chatHistory.getChat(chatId);
+            if (!chat) return;
+
+            chatHistory.currentChatId = chatId;
+            
+            // Xóa tin nhắn cũ (giữ greeting)
+            const messages = chatMessages.querySelectorAll('.message');
+            messages.forEach(msg => {
+                if (!msg.hasAttribute('data-greeting')) {
+                    msg.remove();
+                }
+            });
+
+            // Hiển thị lại tin nhắn từ cuộc trò chuyện được tải
+            chat.messages.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message');
+                messageDiv.classList.add(msg.sender === 'user' ? 'user-message' : 'bot-message');
+                messageDiv.textContent = msg.text;
+                chatMessages.insertBefore(messageDiv, loadingIndicator);
+            });
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            renderHistoryList();
+        }
+
+        function startNewChat() {
+            /**
+             * Bắt đầu cuộc trò chuyện mới
+             */
+            console.log('🆕 Bắt đầu cuộc trò chuyện mới');
+            
+            const chatId = chatHistory.createNewChat();
+            chatHistory.currentChatId = chatId;
+
+            // Xóa tin nhắn cũ
+            const messages = chatMessages.querySelectorAll('.message:not([data-greeting])');
+            messages.forEach(msg => msg.remove());
+
+            userInput.value = '';
+            renderHistoryList();
+        }
+
+        function deleteCurrentChat() {
+            /**
+             * Xóa cuộc trò chuyện hiện tại
+             */
+            if (!chatHistory.currentChatId) return;
+
+            const confirmed = confirm('Bạn có chắc chắn muốn xóa cuộc trò chuyện này?');
+            if (!confirmed) return;
+
+            chatHistory.deleteChat(chatHistory.currentChatId);
+            chatHistory.currentChatId = null;
+
+            // Xóa tin nhắn trên UI
+            const messages = chatMessages.querySelectorAll('.message');
+            messages.forEach(msg => {
+                if (!msg.hasAttribute('data-greeting')) {
+                    msg.remove();
+                }
+            });
+
+            userInput.value = '';
+            renderHistoryList();
+        }
+
+        // Event listeners cho nút cũ
+        btnNew.addEventListener('click', startNewChat);
+        btnDelete.addEventListener('click', deleteCurrentChat);
+
+        // Event listeners cho nút mới (multi-select)
+        btnSelectAll.addEventListener('click', () => {
+            const chats = chatHistory.getChatsArray();
+            chats.forEach(chat => selectedChats.add(chat.id));
+            renderHistoryList();
+        });
+
+        btnClearSelection.addEventListener('click', () => {
+            selectedChats.clear();
+            renderHistoryList();
+        });
+
+        btnDeleteSelected.addEventListener('click', () => {
+            if (selectedChats.size === 0) return;
+
+            const count = selectedChats.size;
+            const confirmed = confirm(`Bạn có chắc chắn muốn xóa ${count} cuộc trò chuyện này?`);
+            if (!confirmed) return;
+
+            // Xóa tất cả các chat được chọn
+            selectedChats.forEach(chatId => {
+                chatHistory.deleteChat(chatId);
+            });
+            
+            selectedChats.clear();
+
+            // Xóa tin nhắn trên UI
+            const messages = chatMessages.querySelectorAll('.message');
+            messages.forEach(msg => {
+                if (!msg.hasAttribute('data-greeting')) {
+                    msg.remove();
+                }
+            });
+
+            userInput.value = '';
+            renderHistoryList();
+            console.log(`🗑️ Đã xóa ${count} cuộc trò chuyện`);
+        });
+
+        // ============================================================
+        // KIỂM TRA KẾT NỐI BACKEND
+        // ============================================================
+        async function checkBackendConnection() {
+            try {
+                const response = await fetch(STATUS_ENDPOINT);
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ Kết nối backend thành công:', data);
+                    updateApiIndicator(data.current_api_index);
+                    return true;
+                }
+            } catch (error) {
+                console.error('❌ Không thể kết nối backend:', error);
+                addSystemMessage('⚠️  Không thể kết nối với backend. Vui lòng kiểm tra server Python đã chạy chưa!');
+                return false;
+            }
+        }
+
+        window.addEventListener('load', () => {
+            checkBackendConnection();
+            
+            // Khởi tạo lịch sử
+            if (!chatHistory.currentChatId) {
+                startNewChat();
+            }
+            
+            renderHistoryList();
+        });
+
+        // ============================================================
+        // HÀM THÊM TIN NHẮN
+        // ============================================================
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            messageDiv.classList.add(sender === 'user' ? 'user-message' : 'bot-message');
+            messageDiv.textContent = text;
+            
+            chatMessages.insertBefore(messageDiv, loadingIndicator);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Lưu vào LocalStorage
+            if (chatHistory.currentChatId) {
+                chatHistory.addMessage(chatHistory.currentChatId, sender, text);
+            }
+
+            // Lưu vào backend (cách 2)
+            if (chatHistory.currentChatId && sender === 'bot') {
+                saveToBackend(chatHistory.currentChatId, text, sender);
+            }
+        }
+
+        // ============================================================
+        // HÀM THÊM TIN NHẮN HỆ THỐNG
+        // ============================================================
+        function addSystemMessage(text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', 'system-message');
+            messageDiv.textContent = text;
+            
+            chatMessages.insertBefore(messageDiv, loadingIndicator);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // ============================================================
+        // HÀM CẬP NHẬT CHỈ BÁO API
+        // ============================================================
+        function updateApiIndicator(apiNum) {
+            apiIndicator.textContent = `API #${apiNum}`;
+        }
+
+        // ============================================================
+        // HÀM GỬI TIN NHẮN ĐẾN BACKEND
+        // ============================================================
+        async function sendMessageToBackend(message) {
+            try {
+                // Hiển thị "Đang suy nghĩ..."
+                loadingIndicator.style.display = 'block';
+                sendBtn.disabled = true;
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                console.log('📨 Gửi tin nhắn:', message);
+
+                const response = await fetch(CHAT_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message
+                    })
+                });
+
+                const data = await response.json();
+
+                console.log('📦 Nhận response từ backend:', data);
+
+                if (data.current_api) {
+                    updateApiIndicator(data.current_api);
+                }
+
+                if (data.success) {
+                    console.log('✅ Thành công!');
+                    addMessage(data.reply, 'bot');
+                } else {
+                    console.error('❌ Lỗi:', data.error);
+                    addMessage(data.error || 'Có lỗi xảy ra, vui lòng thử lại', 'bot');
+                }
+
+            } catch (error) {
+                console.error('❌ Lỗi kết nối backend:', error);
+                addMessage('❌ Lỗi kết nối. Bạn kiểm tra lại xem server Python đã chạy chưa?', 'bot');
+            } finally {
+                loadingIndicator.style.display = 'none';
+                sendBtn.disabled = false;
+            }
+        }
+
+        // ============================================================
+        // HÀM LƯU VÀO BACKEND (CÓ THÊM)
+        // ============================================================
+        async function saveToBackend(chatId, message, sender) {
+            try {
+                await fetch(SAVE_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        message: message,
+                        sender: sender
+                    })
+                });
+            } catch (error) {
+                console.log('💡 Không lưu vào backend, nhưng LocalStorage vẫn hoạt động');
+            }
+        }
+
+        // ============================================================
+        // XỬ LÝ CLICK NÚT GỬI
+        // ============================================================
+        function handleSend() {
+            const text = userInput.value.trim();
+            
+            if (text === '') return;
+
+            // Kiểm tra nếu chưa có cuộc trò chuyện
+            if (!chatHistory.currentChatId) {
+                startNewChat();
+            }
+
+            // Hiển thị tin nhắn của user
+            addMessage(text, 'user');
+            userInput.value = '';
+
+            // Gửi đến backend
+            sendMessageToBackend(text);
+        }
+
+        // Sự kiện click nút Gửi
+        sendBtn.addEventListener('click', handleSend);
+
+        // Sự kiện ấn Enter
+        userInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                handleSend();
+            }
+        });
+
+        // ============================================================
+        // HƯỚNG DẪN CONSOLE
+        // ============================================================
+        console.log('%c🚀 SWINBURNE CHATBOT', 'font-size: 20px; color: red; font-weight: bold;');
+        console.log('%c💾 LocalStorage:', 'color: green; font-weight: bold;', 'Đã bật!');
+        console.log('%c🔐 Dữ liệu được lưu trên trình duyệt của bạn (không cần đăng nhập)');
+    </script>
+</body>
+</html>
