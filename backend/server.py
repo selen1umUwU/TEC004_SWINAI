@@ -3,12 +3,12 @@
 # Tác vụ: Nhận tin nhắn từ frontend, gọi Beeknoee API với failover
 # ============================================================
 
+import psycopg2
+import logging
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
 import json
-import logging
-import sqlite3
 import os
 from datetime import datetime
 from uuid import uuid4
@@ -22,10 +22,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-DB_FILE = 'chatbot_data.db'
+# [ĐÃ KHÓA CHẾT DÂY KẾN NỐI NEON POSTGRESQL CỦA CẬU VÀO ĐÂY]:
+NEON_DB_URL = "postgresql://neondb_owner:npg_Bu9oOQVLXnG4@ep-hidden-glade-ao7nyy3i.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+
+
+def get_db_connection():
+    conn = psycopg2.connect(NEON_DB_URL)
+    conn.autocommit = True
+    return conn
+
 
 def init_database():
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS chat_sessions (
@@ -35,19 +43,20 @@ def init_database():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    # Đã gọt sạch AUTOINCREMENT của SQLite thành SERIAL chuẩn Postgres
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             session_id TEXT NOT NULL,
             sender TEXT NOT NULL,
             content TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
+            FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
         )
     ''')
-    conn.commit()
     conn.close()
-    logger.info("✅ Database initialized")
+    logger.info("✅ PostgreSQL Database initialized on Neon.tech")
+
 
 init_database()
 
@@ -55,14 +64,13 @@ init_database()
 # CẤU HÌNH API KEYS
 # ============================================================
 API_KEYS = [
-    'sk-bee-76dc076cf67f2b50f30da50caf08831fa1d41de02052204f56e06e5755d04569',    # API Key Beeknoee của bạn
+    'sk-bee-76dc076cf67f2b50f30da50caf08831fa1d41de02052204f56e06e5755d04569',   # API Key Beeknoee
     'AQ.Ab8RN6JHq3eLte4HJ2tb7yVRY7Gpu3IxuyxXSDSPm7uE4-epCQ',                      # API Gemini 1
     'AQ.Ab8RN6LU017lfR9U4XNy4mbrsOVTOXQtFx7hPf_xEqK3vmaEug'                       # API Gemini 2
 ]
 
 API_TYPES = ['beeknoee', 'gemini', 'gemini']
 
-# ĐÃ SỬA: Sửa lại URL chuẩn của Beeknoee
 BEEKNOEE_MODEL = 'google/gemini-2.5-flash-lite'
 BEEKNOEE_API_URL = 'https://platform.beeknoee.com/api/v1/chat/completions'
 
@@ -127,58 +135,64 @@ Ngành học và định hướng nghề nghiệp:
 
 - Ngành Công nghệ thông tin (ICT): Nền tảng lập trình, chuyên ngành sâu (AI, IoT, An toàn thông tin).
 - Ngành Quản trị Kinh doanh (Business): Phát triển tư duy lãnh đạo, chiến lược marketing, quản trị tài chính."""
+
+
 def get_current_api_key():
     return API_KEYS[current_api_index]
+
 
 def get_current_api_url():
     api_key = get_current_api_key()
     return f"{GEMINI_API_URL}/{GEMINI_MODEL}:generateContent?key={api_key}"
 
+
 def save_message_to_db(chat_id, sender, content):
     try:
-        conn = sqlite3.connect(DB_FILE)
+        conn = get_db_connection()
         cursor = conn.cursor()
+        # Chú ý: Toàn bộ dấu ? đã được gọt thành %s chuẩn Postgres
         cursor.execute('''
             INSERT INTO messages (session_id, sender, content)
-            VALUES (?, ?, ?)
+            VALUES (%s, %s, %s)
         ''', (chat_id, sender, content))
+
         cursor.execute('''
             UPDATE chat_sessions SET updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
+            WHERE id = %s
         ''', (chat_id,))
-        conn.commit()
         conn.close()
-        logger.info(f"💾 Đã lưu tin nhắn: {chat_id}")
+        logger.info(f"💾 Đã lưu tin nhắn vào Neon DB: {chat_id}")
         return True
     except Exception as e:
-        logger.error(f"❌ Lỗi lưu DB: {str(e)}")
+        logger.error(f"❌ Lỗi lưu Neon DB: {str(e)}")
         return False
+
 
 def create_chat_session(title):
     try:
         chat_id = str(uuid4())
-        conn = sqlite3.connect(DB_FILE)
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO chat_sessions (id, title)
-            VALUES (?, ?)
+            VALUES (%s, %s)
         ''', (chat_id, title))
-        conn.commit()
         conn.close()
-        logger.info(f"✅ Tạo session: {chat_id}")
+        logger.info(f"✅ Tạo session trên Neon: {chat_id}")
         return chat_id
     except Exception as e:
-        logger.error(f"❌ Lỗi tạo session: {str(e)}")
+        logger.error(f"❌ Lỗi tạo session Neon: {str(e)}")
         return None
+
 
 def get_chat_session(chat_id):
     try:
-        conn = sqlite3.connect(DB_FILE)
+        conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT id, title, created_at FROM chat_sessions WHERE id = ?', (chat_id,))
+        cursor.execute('SELECT id, title, created_at FROM chat_sessions WHERE id = %s', (chat_id,))
         row = cursor.fetchone()
         if row:
-            cursor.execute('SELECT sender, content, created_at FROM messages WHERE session_id = ? ORDER BY created_at', (chat_id,))
+            cursor.execute('SELECT sender, content, created_at FROM messages WHERE session_id = %s ORDER BY created_at', (chat_id,))
             messages = []
             for msg_row in cursor.fetchall():
                 messages.append({
@@ -196,12 +210,13 @@ def get_chat_session(chat_id):
         conn.close()
         return None
     except Exception as e:
-        logger.error(f"❌ Lỗi lấy session: {str(e)}")
+        logger.error(f"❌ Lỗi lấy session Neon: {str(e)}")
         return None
+
 
 def get_all_chat_sessions():
     try:
-        conn = sqlite3.connect(DB_FILE)
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
             SELECT id, title, created_at, updated_at 
@@ -221,8 +236,7 @@ def get_all_chat_sessions():
     except Exception as e:
         logger.error(f"❌ Lỗi lấy danh sách session: {str(e)}")
         return []
-    # ĐÃ XÓA ĐOẠN CODE BỊ THỪA GÂY LỖI SYNTAX Ở ĐÂY
-
+        
 def is_token_error(status_code, error_data):
     token_error_codes = [429, 401, 403]
     if status_code in token_error_codes:
