@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swinburne Admission Portal - AI Assistant</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --swinburne-red: #D71920;      /* Màu đỏ Crimson chuẩn Swinburne */
+            --swinburne-red-hover: #b01218;
+            --swinburne-dark: #111111;     /* Đen charcoal thương hiệu */
+            --swinburne-gray-dark: #222222;
+            --swinburne-gray-light: #f5f5f7;
+            --swinburne-border: #e5e5e7;
+            --text-main: #1d1d1f;
+            --text-muted: #86868b;
+            --shadow-premium: 0 12px 40px rgba(0, 0, 0, 0.08);
+            --ease-premium: cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            background-color: #fafafa;
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ============ TOP NAV PORTAL BAR ============ */
+        header {
+            background: var(--swinburne-dark);
+            color: white;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid var(--swinburne-red);
+            z-index: 10;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-area h1 {
+            font-size: 1.3rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .logo-area h1 span {
+            color: var(--swinburne-red);
+        }
+
+        .portal-badge {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.15);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+            
+        .portal-badge ::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse-green 2s infinite;
+        }
+
+        @keyframes pulse-green {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        /* ============ MAIN LAYOUT ============ */
+        .main-wrapper {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 65px);
+            background: #fcfcfd;
+        }
+
+        /* ============ SIDEBAR (LEFT) ============ */
+        #history-sidebar {
+            width: 340px;
+            background: white;
+            border-right: 1px solid var(--swinburne-border);
+            display: flex;
+            flex-direction: column;
+            transition: all 0.4s var(--ease-premium);
+        }
+
+        .sidebar-title {
+            padding: 24px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--swinburne-dark);
+            border-bottom: 1px solid var(--swinburne-gray-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .history-item {
+            padding: 14px 16px;
+            background: var(--swinburne-gray-light);
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s var(--ease-premium);
+            border-left: 4px solid transparent;
+            position: relative;
+        }
+
+        .history-item:hover {
+            background: #eaeaea;
+            transform: translateX(4px);
+        }
+
+        .history-item.active {
+            background: white;
+            border-left-color: var(--swinburne-red);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        .history-item.selected {
+            background: rgba(215, 25, 32, 0.05);
+            border-left-color: var(--swinburne-dark);
+        }
+#calc-result, .message, .response-container {
+        white-space: pre-wrap !important; 
+    }
+        .history-checkbox {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--swinburne-red);
+            cursor: pointer;
+        }
+
+        .history-item-text {
+            flex: 1;
+            font-size: 0.9rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--swinburne-dark);
+        }
+
+        /* SIDEBAR CONTROLS */
+        #history-controls {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid var(--swinburne-border);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        #history-controls-row1, #history-controls-row2 {
+            display: flex;
+            gap: 10px;
+        }
+
+        #history-controls-row2 { display: none; }
+        #history-controls-row2.show { display: flex; animation: slideInUp 0.3s var(--ease-premium); }
+
+        .btn {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.25s ease;
+        }
+
+        .btn-new {
+            flex: 1;
+            background: var(--swinburne-red);
+            color: white;
+        }
+
+        .btn-new:hover {
+            background: var(--swinburne-red-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(215, 25, 32, 0.2);
+        }
+
+        .btn-delete {
+            background: var(--swinburne-dark);
+            color: white;
+        }
+
+        .btn-delete:hover:not(:disabled) {
+            background: #333;
+        }
+
+        .btn-delete:disabled {
+            background: var(--swinburne-border);
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: var(--swinburne-gray-light);
+            color: var(--swinburne-dark);
+            font-size: 0.8rem;
+            padding: 8px 12px;
+        }
+
+        /* ============ CHAT CONSOLE (RIGHT) ============ */
+        #chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+            position: relative;
+        }
+
+        #chat-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid var(--swinburne-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+        }
+
+        .chat-info h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--swinburne-dark);
+        }
+
+        .chat-info p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        #api-indicator {
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: var(--swinburne-gray-light);
+            padding: 6px 12px;
+            border-radius: 6px;
+            color: var(--swinburne-dark);
+            display: none;
+        }
+
+        /* MESSAGES STREAM */
+        #chat-messages {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background: #fafafa;
+        }
+
+        .message {
+            max-width: 75%;
+            padding: 15px 20px;
+            border-radius: 14px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            word-wrap: break-word;
+            opacity: 0;
+            transform: translateY(20px) scale(0.98);
+            animation: messageAppear 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+
+        @keyframes messageAppear {
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .bot-message {
+            background: white;
+            color: var(--text-main);
+            align-self: flex-start;
+            border-top-left-radius: 2px;
+            border: 1px solid var(--swinburne-border);
+        }
+
+        .user-message {
+            background: var(--swinburne-dark);
+            color: white;
+            align-self: flex-end;
+            border-top-right-radius: 2px;
+        }
+
+        .system-message {
+            background: #fff3cd;
+            color: #856404;
+            align-self: center;
+            font-size: 0.85rem;
+            border-radius: 8px;
+            border: 1px solid #ffeeba;
+            text-align: center;
+        }
+
+        /* TYPING WAVE INDICATOR */
+        .loading {
+            align-self: flex-start;
+            background: white;
+            border: 1px solid var(--swinburne-border);
+            padding: 15px 22px;
+            border-radius: 14px;
+            border-top-left-radius: 2px;
+            display: none;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: var(--swinburne-red);
+            border-radius: 50%;
+            animation: waveAnimation 1.2s infinite ease-in-out;
+        }
+        .dot:nth-child(2) { animation-delay: 0.15s; }
+        .dot:nth-child(3) { animation-delay: 0.3s; }
+
+        @keyframes waveAnimation {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-7px); }
+        }
+
+        /* INPUT CONTROL AREA */
+        #input-container {
+            padding: 24px 30px;
+            background: white;
+            border-top: 1px solid var(--swinburne-border);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        #user-input {
+            flex: 1;
+            padding: 16px 20px;
+            border: 1px solid var(--swinburne-border);
+            border-radius: 10px;
+            font-size: 0.95rem;
+            outline: none;
+            background: var(--swinburne-gray-light);
+            transition: all 0.3s var(--ease-premium);
+        }
+
+        #user-input:focus {
+            background: white;
+            border-color: var(--swinburne-red);
+            box-shadow: 0 0 0 4px rgba(215, 25, 32, 0.1);
+        }
+
+        #send-btn {
+            background: var(--swinburne-red);
+            color: white;
+            border: none;
+            width: 52px;
+            height: 52px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: all 0.25s var(--ease-premium);
+        }
+
+        #send-btn:hover:not(:disabled) {
+            background: var(--swinburne-red-hover);
+            transform: scale(1.02);
+        }
+
+        #send-btn:disabled {
+            background: var(--swinburne-border);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ANIMATIONS KHÁC */
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* RESPONSIVE DESIGN */
+        @media (max-width: 850px) {
+            .main-wrapper { flex-direction: column; }
+            #history-sidebar { width: 100%; height: 200px; }
+            #chat-container { height: calc(100vh - 265px); }
+        }
+        
+        /* ============ OVERLAY & MODAL CSS ============ */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px);
+            display: none; justify-content: center; align-items: center; z-index: 100;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.show { display: flex; opacity: 1; }
+
+        .modal-content {
+            background: white; width: 90%; max-width: 450px;
+            border-radius: 16px; overflow: hidden;
+            transform: translateY(20px) scale(0.95);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+
+        .modal-overlay.show .modal-content { transform: translateY(0) scale(1); }
+
+        .modal-header {
+            background: var(--swinburne-dark); color: white;
+            padding: 15px 20px; display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 3px solid var(--swinburne-red);
+        }
+
+        .modal-header h3 { font-size: 1.1rem; display: flex; gap: 10px; align-items: center; }
+        .btn-close-modal { background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; }
+
+        .modal-body { padding: 25px; display: flex; flex-direction: column; gap: 15px; }
+
+        .input-group { display: flex; flex-direction: column; gap: 8px; }
+        .input-group label { font-size: 0.9rem; font-weight: 600; color: var(--swinburne-dark); }
+        .input-group input[type="text"], .input-group input[type="number"], .input-group select {
+            padding: 12px; border: 1px solid var(--swinburne-border); border-radius: 8px;
+            font-size: 1rem; background: var(--swinburne-gray-light); outline: none;
+        }
+        .input-group input:focus, .input-group select:focus { border-color: var(--swinburne-red); }
+
+        .result-box {
+            margin-top: 15px; padding: 15px; border-radius: 10px; background: #f8f9fa;
+            border: 1px dashed var(--swinburne-border); text-align: center; display: none;
+        }
+        .result-box h4 { color: var(--swinburne-red); font-size: 1.2rem; margin-bottom: 5px; }
+        .result-box p { font-size: 0.85rem; color: var(--text-muted); }
+        .result-box.success { background: #e8f5e9; border-color: #4caf50; }
+        .result-box.success h4 { color: #2e7d32; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-area">
+            <i class="fa-solid fa-graduation-cap style-icon" style="color: var(--swinburne-red); font-size: 1.6rem;"></i>
+            <h1>Swinburne <span>Admission</span></h1>
+        </div>
+        
+        <div style="display: flex; gap: 10px; align-items: center;">
+            
+            <button id="btn-open-scholarship" class="btn btn-new" style="padding: 8px 15px; font-size: 0.85rem; background: transparent; border: 1px solid rgba(255,255,255,0.3); box-shadow: none;">
+                <i class="fa-solid fa-calculator"></i> Tra cứu Học bổng
+            </button>
+            <div class="portal-badge">Hệ thống Tuyển sinh trực tuyến</div>
+        </div>
+    </header>
+
+    <div class="main-wrapper">
+        <div id="history-sidebar">
+            <div class="sidebar-title">
+                <span><i class="fa-solid fa-folder-open" style="margin-right: 8px; color: var(--swinburne-red);"></i>Hồ sơ Chat (<span id="history-count">0</span>)</span>
+            </div>
+            
+            <div id="history-list"></div>
+
+            <div id="history-controls">
+                <div id="history-controls-row1">
+                    <button class="btn btn-new" id="btn-new"><i class="fa-solid fa-square-plus"></i> Phiên mới</button>
+                    <button class="btn btn-delete" id="btn-delete" disabled><i class="fa-solid fa-trash-can"></i> Xóa</button>
+                </div>
+                <div id="history-controls-row2">
+                    <button class="btn btn-secondary" id="btn-select-all">Chọn hết</button>
+                    <button class="btn btn-secondary" id="btn-clear-selection">Bỏ chọn</button>
+                    <button class="btn btn-new" id="btn-delete-selected" style="background:#333;"><i class="fa-solid fa-trash"></i> Xóa nhóm</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="chat-container">
+            <div id="chat-header">
+                <div class="chat-info">
+                    <h2>Trợ lý Tư vấn Tuyển sinh Swinburne Vietnam</h2>
+                    <p>Giải đáp thông tin ngành học, học phí và học bổng 2026</p>
+                </div>
+                <div id="api-indicator">API #1</div>
+            </div>
+            
+            <div id="chat-messages">
+                <div class="message bot-message" data-greeting="true">Xin chào! Cảm ơn bạn đã quan tâm đến Swinburne Vietnam. Mình có thể cung cấp thông tin về các ngành đào tạo (ICT, Kinh doanh, Truyền thông đa phương tiện), học bổng hoặc thủ tục xét tuyển cho bạn hôm nay nhé! 🎓</div>
+                <div id="loading-indicator" class="loading">
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                </div>
+            </div>
+
+            <div id="input-container">
+                <input type="text" id="user-input" placeholder="Đặt câu hỏi về tuyển sinh tại đây..." autocomplete="off">
+                <button id="send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    
+
+    <div id="scholarship-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-award"></i> Ước tính Học bổng Swinburne 2026</h3>
+                <button id="btn-close-modal" class="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>Điểm Trung Bình (GPA) lớp 11 hoặc 12:</label>
+                    <input type="number" id="calc-gpa" min="0" max="10" step="0.1" placeholder="Ví dụ: 8.5">
+                </div>
+                <div class="input-group">
+                    <label>Chứng chỉ Tiếng Anh (Tương đương IELTS):</label>
+                    <select id="calc-ielts">
+                        <option value="0">Chưa có / Dưới 6.0</option>
+                        <option value="6.0">IELTS 6.0</option>
+                        <option value="6.5">IELTS 6.5</option>
+                        <option value="7.0">IELTS 7.0 trở lên</option>
+                    </select>
+                </div>
+                <div class="input-group" style="flex-direction: row; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="calc-activity" style="width: 20px; height: 20px; accent-color: var(--swinburne-red);">
+                    <label style="margin: 0;">Có HĐXH, giải thưởng hoặc ảnh hưởng tốt</label>
+                </div>
+                <div class="input-group" style="flex-direction: row; align-items: center; gap: 10px; margin-top: -5px;">
+                    <input type="checkbox" id="calc-fpt" style="width: 20px; height: 20px; accent-color: #F58220;">
+                    <label style="margin: 0;">Bố/mẹ là nhân viên Tập đoàn FPT</label>
+                </div>
+                
+                <button id="btn-calculate" class="btn btn-new" style="width: 100%; margin-top: 10px;">Xem Kết Quả Ước Tính</button>
+                
+                <div id="calc-result" class="result-box"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'http://localhost:5000';
+        const CHAT_ENDPOINT = `${BACKEND_URL}/api/chat`;
+        const STATUS_ENDPOINT = `${BACKEND_URL}/api/status`;
+        const SAVE_ENDPOINT = `${BACKEND_URL}/api/save-chat`;
+        const THPT_ENDPOINT = `${BACKEND_URL}/api/tra-diem`;
+
+        class ChatHistory {
+            constructor() {
+                this.storageKey = 'swinburne_chats';
+                this.currentChatId = null;
+            }
+            generateId() { return `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`; }
+            createNewChat() {
+                const chatId = this.generateId();
+                const timestamp = new Date().toLocaleString('vi-VN');
+                const chats = this.getAllChats();
+                chats[chatId] = { id: chatId, title: `Phiên vấn tin ${timestamp}`, timestamp: timestamp, messages: [] };
+                localStorage.setItem(this.storageKey, JSON.stringify(chats));
+                this.currentChatId = chatId;
+                return chatId;
+            }
+            getAllChats() {
+                const data = localStorage.getItem(this.storageKey);
+                return data ? JSON.parse(data) : {};
+            }
+            getChat(chatId) {
+                const chats = this.getAllChats();
+                return chats[chatId] || null;
+            }
+            addMessage(chatId, sender, text) {
+                const chats = this.getAllChats();
+                if (!chats[chatId]) return false;
+                chats[chatId].messages.push({ sender: sender, text: text, timestamp: new Date().toISOString() });
+                if (chats[chatId].messages.length === 1) {
+                    chats[chatId].title = text.substring(0, 25) + (text.length > 25 ? '...' : '');
+                }
+                localStorage.setItem(this.storageKey, JSON.stringify(chats));
+                return true;
+            }
+            deleteChat(chatId) {
+                const chats = this.getAllChats();
+                delete chats[chatId];
+                localStorage.setItem(this.storageKey, JSON.stringify(chats));
+                if (this.currentChatId === chatId) this.currentChatId = null;
+                return true;
+            }
+            getChatsArray() {
+                const chats = this.getAllChats();
+                return Object.values(chats).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            }
+        }
+
+        const chatHistory = new ChatHistory();
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const apiIndicator = document.getElementById('api-indicator');
+        const historyList = document.getElementById('history-list');
+        const historyCount = document.getElementById('history-count');
+        const btnNew = document.getElementById('btn-new');
+        const btnDelete = document.getElementById('btn-delete');
+        const btnSelectAll = document.getElementById('btn-select-all');
+        const btnClearSelection = document.getElementById('btn-clear-selection');
+        const btnDeleteSelected = document.getElementById('btn-delete-selected');
+        const historyControlsRow2 = document.getElementById('history-controls-row2');
+        const selectedChats = new Set();
+
+        function renderHistoryList() {
+            historyList.innerHTML = '';
+            const chats = chatHistory.getChatsArray();
+            historyCount.textContent = chats.length;
+
+            if (chats.length === 0) {
+                historyList.innerHTML = '<div style="padding: 20px; text-align: center; color: #999; font-style: italic; font-size:0.85rem;">Chưa có lịch sử tư vấn</div>';
+                selectedChats.clear();
+                updateSelectionUI();
+                return;
+            }
+
+            chats.forEach(chat => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'history-checkbox';
+                checkbox.value = chat.id;
+                checkbox.checked = selectedChats.has(chat.id);
+                
+                const textSpan = document.createElement('span');
+                textSpan.className = 'history-item-text';
+                textSpan.textContent = chat.title;
+                
+                checkbox.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    if (checkbox.checked) { selectedChats.add(chat.id); div.classList.add('selected'); }
+                    else { selectedChats.delete(chat.id); div.classList.remove('selected'); }
+                    updateSelectionUI();
+                });
+                
+                div.addEventListener('click', (e) => { if (e.target !== checkbox) loadChat(chat.id); });
+                if (chat.id === chatHistory.currentChatId) div.classList.add('active');
+                if (selectedChats.has(chat.id)) div.classList.add('selected');
+                
+                div.appendChild(checkbox);
+                div.appendChild(textSpan);
+                historyList.appendChild(div);
+            });
+            btnDelete.disabled = !chatHistory.currentChatId;
+        }
+
+        function updateSelectionUI() {
+            if (selectedChats.size > 0) historyControlsRow2.classList.add('show');
+            else historyControlsRow2.classList.remove('show');
+        }
+
+        function loadChat(chatId) {
+            const chat = chatHistory.getChat(chatId);
+            if (!chat) return;
+            chatHistory.currentChatId = chatId;
+            const messages = chatMessages.querySelectorAll('.message');
+            messages.forEach(msg => { if (!msg.hasAttribute('data-greeting')) msg.remove(); });
+
+            chat.messages.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message');
+                messageDiv.classList.add(msg.sender === 'user' ? 'user-message' : 'bot-message');
+                messageDiv.textContent = msg.text;
+                chatMessages.insertBefore(messageDiv, loadingIndicator);
+            });
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            renderHistoryList();
+        }
+
+        function startNewChat() {
+            chatHistory.currentChatId = chatHistory.createNewChat();
+            const messages = chatMessages.querySelectorAll('.message:not([data-greeting])');
+            messages.forEach(msg => msg.remove());
+            userInput.value = '';
+            renderHistoryList();
+        }
+
+        function deleteCurrentChat() {
+            if (!chatHistory.currentChatId) return;
+            if (!confirm('Bạn có chắc chắn muốn xóa hồ sơ tư vấn này?')) return;
+            chatHistory.deleteChat(chatHistory.currentChatId);
+            const messages = chatMessages.querySelectorAll('.message');
+            messages.forEach(msg => { if (!msg.hasAttribute('data-greeting')) msg.remove(); });
+            userInput.value = '';
+            renderHistoryList();
+        }
+
+        btnNew.addEventListener('click', startNewChat);
+        btnDelete.addEventListener('click', deleteCurrentChat);
+        btnSelectAll.addEventListener('click', () => {
+            chatHistory.getChatsArray().forEach(chat => selectedChats.add(chat.id));
+            renderHistoryList();
+        });
+        btnClearSelection.addEventListener('click', () => { selectedChats.clear(); renderHistoryList(); });
+        btnDeleteSelected.addEventListener('click', () => {
+            if (selectedChats.size === 0) return;
+            if (!confirm(`Xóa bỏ ${selectedChats.size} cuộc trò chuyện đã chọn?`)) return;
+            selectedChats.forEach(chatId => chatHistory.deleteChat(chatId));
+            selectedChats.clear();
+            const messages = chatMessages.querySelectorAll('.message');
+            messages.forEach(msg => { if (!msg.hasAttribute('data-greeting')) msg.remove(); });
+            userInput.value = '';
+            renderHistoryList();
+        });
+
+        async function checkBackendConnection() {
+            try {
+                const response = await fetch(STATUS_ENDPOINT);
+                if (response.ok) {
+                    const data = await response.json();
+                    updateApiIndicator(data.current_api_index);
+                    return true;
+                }
+            } catch (error) {
+                addSystemMessage('⚠️ Không thể kết nối với Cổng Tuyển Sinh. Hãy kích hoạt server Python!');
+                return false;
+            }
+        }
+
+        window.addEventListener('load', () => {
+            checkBackendConnection();
+            if (!chatHistory.currentChatId) startNewChat();
+            renderHistoryList();
+        });
+
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            messageDiv.classList.add(sender === 'user' ? 'user-message' : 'bot-message');
+            messageDiv.textContent = text;
+            chatMessages.insertBefore(messageDiv, loadingIndicator);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            if (chatHistory.currentChatId) chatHistory.addMessage(chatHistory.currentChatId, sender, text);
+            if (chatHistory.currentChatId && sender === 'bot') saveToBackend(chatHistory.currentChatId, text, sender);
+        }
+
+        function addSystemMessage(text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', 'system-message');
+            messageDiv.textContent = text;
+            chatMessages.insertBefore(messageDiv, loadingIndicator);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function updateApiIndicator(apiNum) { apiIndicator.style.display = 'block'; apiIndicator.textContent = `Hệ thống API #${apiNum}`; }
+
+        async function sendMessageToBackend(message) {
+            try {
+                loadingIndicator.style.display = 'flex';
+                sendBtn.disabled = true;
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                const response = await fetch(CHAT_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+        // [TẦNG 1]: Bắt đúng bệnh Quá tải (503) hoặc Hết hạn ngạch API (429)
+        if (response.status === 503 || response.status === 429) {
+            loadingIndicator.style.display = 'none'; // <-- SỬA DÒNG NÀY: Dùng lệnh trực tiếp thay cho hàm gãy!
+            addMessage('Hiện máy chủ hệ thống đang quá tải. Bạn hãy liên hệ hotline 0773131319 để biết thêm thông tin chi tiết', 'bot');
+            sendBtn.disabled = false;
+            return;
+        }
+
+        // [TẦNG 2]: Bắt các lỗi kỹ thuật khác của Server (404, 500...)
+        if (!response.ok) {
+            loadingIndicator.style.display = 'none';
+            addMessage('Kết nối đến hệ thống tạm thời gián đoạn. Vui lòng thử lại sau giây lát.', 'bot');
+            sendBtn.disabled = false;
+            return;
+        }
+
+        const data = await response.json();
+        if (data.current_api) updateApiIndicator(data.current_api);
+
+        if (data.success) {
+            addMessage(data.reply, 'bot');
+        } else {
+            // [TẦNG LỌC LÕI]: Bắt tại trận chuỗi "Lỗi API: 503" nằm bên trong bọc JSON
+            const errStr = (data.error || '').toLowerCase();
+            if (errStr.includes('503') || errStr.includes('quá tải') || errStr.includes('vấn đề')) {
+                addMessage('Hiện máy chủ hệ thống đang quá tải. Bạn hãy liên hệ hotline 0773131319 để biết thêm thông tin chi tiết', 'bot');
+            } else {
+                addMessage(data.error || 'Đường truyền bận, vui lòng thử lại', 'bot');
+            }
+        }
+
+    } catch (error) {
+        loadingIndicator.style.display = 'none';
+        addMessage('Hiện máy chủ hệ thống đang quá tải. Bạn hãy liên hệ hotline 0773131319 để biết thêm thông tin chi tiết', 'bot');
+    } finally {
+        loadingIndicator.style.display = 'none';
+        sendBtn.disabled = false;
+        userInput.focus();
+    }
+}
+
+        async function saveToBackend(chatId, message, sender) {
+            try {
+                await fetch(SAVE_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ chat_id: chatId, message: message, sender: sender })
+                });
+            } catch (error) {}
+        }
+
+        function handleSend() {
+            const text = userInput.value.trim();
+            if (text === '') return;
+            if (!chatHistory.currentChatId) startNewChat();
+            addMessage(text, 'user');
+            userInput.value = '';
+            sendMessageToBackend(text);
+        }
+
+        sendBtn.addEventListener('click', handleSend);
+        userInput.addEventListener('keypress', function(e) { if (e.key === 'Enter') handleSend(); });
+
+        // ============ LOGIC MODAL HỌC BỔNG 2026 ============
+        const modalScholarship = document.getElementById('scholarship-modal');
+        const btnOpenScholarship = document.getElementById('btn-open-scholarship');
+        const btnCloseScholarship = document.getElementById('btn-close-modal');
+        const btnCalculate = document.getElementById('btn-calculate');
+        const calcResultBox = document.getElementById('calc-result');
+
+        btnOpenScholarship.addEventListener('click', () => { modalScholarship.classList.add('show'); });
+        btnCloseScholarship.addEventListener('click', () => { modalScholarship.classList.remove('show'); });
+        modalScholarship.addEventListener('click', (e) => { if(e.target === modalScholarship) modalScholarship.classList.remove('show'); });
+
+        btnCalculate.addEventListener('click', () => {
+            const gpa = parseFloat(document.getElementById('calc-gpa').value);
+            const ielts = parseFloat(document.getElementById('calc-ielts').value);
+            const hasActivity = document.getElementById('calc-activity').checked;
+            const isFPT = document.getElementById('calc-fpt').checked;
+
+            calcResultBox.style.display = 'block';
+            calcResultBox.className = 'result-box';
+
+            if (isNaN(gpa) || gpa < 0 || gpa > 10) {
+                calcResultBox.innerHTML = `<h4>Lỗi Dữ Liệu</h4><p>Vui lòng nhập GPA hợp lệ từ 0 đến 10.</p>`;
+                return;
+            }
+            if (gpa < 7.0) {
+                calcResultBox.innerHTML = `<h4>Chưa Đủ Điều Kiện</h4><p>GPA tối thiểu xét tuyển Swinburne là 7.0. Hãy cố gắng thêm nhé!</p>`;
+                return;
+            }
+
+            calcResultBox.classList.add('success');
+            let title = "Đủ Điều Kiện Nhập Học"; let scholarship = "Không xác định"; let message = "Bạn đã đủ điều kiện nộp hồ sơ xét tuyển.";
+
+            // Thuật toán ưu tiên mức học bổng cao nhất
+            if (gpa >= 9.0 && ielts >= 7.0) {
+                title = "Học bổng Talent (Tài năng)"; 
+                scholarship = "225 - 250 triệu VNĐ"; 
+                message = "Kết quả xuất sắc, thể hiện năng lực tư duy, phân tích cao!";
+            }
+            else if (gpa >= 8.5 && hasActivity) { 
+                title = "Học bổng NextGen (Thế hệ mới)"; 
+                scholarship = "175 - 200 triệu VNĐ"; 
+                message = "Bạn có nền tảng tốt và các hoạt động xã hội gây ảnh hưởng tích cực.";
+            }
+            else if (gpa >= 8.0 && ielts >= 6.0) { 
+                title = "Học bổng Pioneer (Người tiên phong)"; 
+                scholarship = "125 - 150 triệu VNĐ"; 
+                message = "Hãy chuẩn bị tinh thần thể hiện tốt qua bài thi tư duy nhé.";
+            }
+            // Ưu tiên FPT Talent (125tr) hơn Change-Maker (50-100tr)
+            else if (isFPT && gpa >= 7.0) {
+                title = "Học bổng FPT Talent"; 
+                scholarship = "125 triệu VNĐ"; 
+                message = "Đặc quyền dành riêng cho con em nhân viên thuộc Tập đoàn FPT.";
+            }
+            else if (gpa >= 7.0) { 
+                title = "Học bổng Change-Maker"; 
+                scholarship = "50 - 100 triệu VNĐ"; 
+                message = "Bạn có nền tảng và mong muốn học trong môi trường quốc tế. Đạt bài test để nhận học bổng.";
+            }
+
+            calcResultBox.innerHTML = `<h4><i class="fa-solid fa-trophy"></i> ${title}</h4><div style="font-size: 1.5rem; font-weight: bold; color: var(--swinburne-red); margin: 10px 0;">${scholarship}</div><p>${message}</p>`;
+        });
+
+        
+
+    </script>
+</body>
+</html>
