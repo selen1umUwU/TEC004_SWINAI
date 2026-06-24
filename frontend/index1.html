@@ -161,8 +161,8 @@
             background: rgba(215, 25, 32, 0.05);
             border-left-color: var(--swinburne-dark);
         }
-#calc-result, .message-content, .response-container {
-        white-space: pre-line !important; 
+#calc-result, .message, .response-container {
+        white-space: pre-wrap !important; 
     }
         .history-checkbox {
             width: 16px;
@@ -531,9 +531,7 @@
             </div>
             
             <div id="chat-messages">
-                <div class="message bot-message" data-greeting="true">
-                    Xin chào! Cảm ơn bạn đã quan tâm đến Swinburne Vietnam. Mình có thể cung cấp thông tin về các ngành đào tạo (ICT, Kinh doanh, Truyền thông đa phương tiện), học bổng hoặc thủ tục xét tuyển cho bạn hôm nay nhé! 🎓
-                </div>
+                <div class="message bot-message" data-greeting="true">Xin chào! Cảm ơn bạn đã quan tâm đến Swinburne Vietnam. Mình có thể cung cấp thông tin về các ngành đào tạo (ICT, Kinh doanh, Truyền thông đa phương tiện), học bổng hoặc thủ tục xét tuyển cho bạn hôm nay nhé! 🎓</div>
                 <div id="loading-indicator" class="loading">
                     <div class="dot"></div><div class="dot"></div><div class="dot"></div>
                 </div>
@@ -808,18 +806,46 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message: message })
                 });
-                const data = await response.json();
-                if (data.current_api) updateApiIndicator(data.current_api);
-                if (data.success) addMessage(data.reply, 'bot');
-                else addMessage(data.error || 'Đường truyền bận, vui lòng thử lại', 'bot');
-            } catch (error) {
-                addMessage('❌ Lỗi mất kết nối. Hãy đảm bảo file server.py đang chạy.', 'bot');
-            } finally {
-                loadingIndicator.style.display = 'none';
-                sendBtn.disabled = false;
-                userInput.focus();
+        // [TẦNG 1]: Bắt đúng bệnh Quá tải (503) hoặc Hết hạn ngạch API (429)
+        if (response.status === 503 || response.status === 429) {
+            loadingIndicator.style.display = 'none'; // <-- SỬA DÒNG NÀY: Dùng lệnh trực tiếp thay cho hàm gãy!
+            addMessage('Hiện máy chủ hệ thống đang quá tải. Bạn hãy liên hệ hotline 0773131319 để biết thêm thông tin chi tiết', 'bot');
+            sendBtn.disabled = false;
+            return;
+        }
+
+        // [TẦNG 2]: Bắt các lỗi kỹ thuật khác của Server (404, 500...)
+        if (!response.ok) {
+            loadingIndicator.style.display = 'none';
+            addMessage('Kết nối đến hệ thống tạm thời gián đoạn. Vui lòng thử lại sau giây lát.', 'bot');
+            sendBtn.disabled = false;
+            return;
+        }
+
+        const data = await response.json();
+        if (data.current_api) updateApiIndicator(data.current_api);
+
+        if (data.success) {
+            addMessage(data.reply, 'bot');
+        } else {
+            // [TẦNG LỌC LÕI]: Bắt tại trận chuỗi "Lỗi API: 503" nằm bên trong bọc JSON
+            const errStr = (data.error || '').toLowerCase();
+            if (errStr.includes('503') || errStr.includes('quá tải') || errStr.includes('vấn đề')) {
+                addMessage('Hiện máy chủ hệ thống đang quá tải. Bạn hãy liên hệ hotline 0773131319 để biết thêm thông tin chi tiết', 'bot');
+            } else {
+                addMessage(data.error || 'Đường truyền bận, vui lòng thử lại', 'bot');
             }
         }
+
+    } catch (error) {
+        loadingIndicator.style.display = 'none';
+        addMessage('Hiện máy chủ hệ thống đang quá tải. Bạn hãy liên hệ hotline 0773131319 để biết thêm thông tin chi tiết', 'bot');
+    } finally {
+        loadingIndicator.style.display = 'none';
+        sendBtn.disabled = false;
+        userInput.focus();
+    }
+}
 
         async function saveToBackend(chatId, message, sender) {
             try {
